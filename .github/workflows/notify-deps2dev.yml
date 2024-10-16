@@ -2,28 +2,40 @@ name: Notify deps2.dev of New Version
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    tags:
+      - 'v*' # This will trigger the workflow on pushing tags that start with 'v'
 
 jobs:
   notify-deps2dev:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
-    - name: Read version from version.txt
-      id: read_version
-      run: echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+    - name: Read version
+      id: version
+      run: echo "::set-output name=VERSION::$(cat version.txt)"
+
+    - name: Get current date
+      id: date
+      run: echo "::set-output name=DATE::$(date +'%Y-%m-%d')"
 
     - name: Notify deps2.dev
       env:
-        VERSION: ${{ env.VERSION }}
-        DEPS2DEV_API_KEY: ${{ secrets.DEPS2DEV_API_KEY }}
+        DEPS2DEV_URL: "https://deps.dev/newVersion" # Replace with your actual deps2.dev URL
       run: |
-        curl -X POST https://api.deps2.dev/notify \
-        -H "Authorization: Bearer $DEPS2DEV_API_KEY" \
-        -H "Content-Type: application/json" \
-        -d '{"version": "${{ env.VERSION }}", "repository": "${{ github.repository }}"}'
+        curl -X POST $DEPS2DEV_URL \
+          -H "Content-Type: application/json" \
+          -d '{
+            "package": "VeriTax",
+            "version": "${{ steps.version.outputs.VERSION }}",
+            "release_date": "${{ steps.date.outputs.DATE }}"
+          }'
+
+    - name: Check notification status
+      run: |
+        if [ $? -eq 0 ]; then
+          echo "Successfully notified deps2.dev of new version ${{ steps.version.outputs.VERSION }}"
+        else
+          echo "Failed to notify deps2.dev"
+          exit 1
+        fi
