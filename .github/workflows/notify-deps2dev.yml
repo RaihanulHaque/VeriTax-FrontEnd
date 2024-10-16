@@ -1,0 +1,29 @@
+name: Notify deps2.dev of New Version
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  notify-deps2dev:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Read version from version.txt
+      id: read_version
+      run: echo "VERSION=$(cat version.txt)" >> $GITHUB_ENV
+
+    - name: Notify deps2.dev
+      env:
+        VERSION: ${{ env.VERSION }}
+        DEPS2DEV_API_KEY: ${{ secrets.DEPS2DEV_API_KEY }}
+      run: |
+        curl -X POST https://api.deps2.dev/notify \
+        -H "Authorization: Bearer $DEPS2DEV_API_KEY" \
+        -H "Content-Type: application/json" \
+        -d '{"version": "${{ env.VERSION }}", "repository": "${{ github.repository }}"}'
